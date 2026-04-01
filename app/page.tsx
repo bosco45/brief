@@ -38,7 +38,7 @@ function CinematicBackground() {
       if (!ctx || !canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Mouse light glow (warmer)
+      // Mouse light glow - cleaner white light
       if (mouseRef.current.x && mouseRef.current.y) {
         const grad = ctx.createRadialGradient(
           mouseRef.current.x,
@@ -46,16 +46,16 @@ function CinematicBackground() {
           0,
           mouseRef.current.x,
           mouseRef.current.y + window.scrollY,
-          500
+          350 // reduced from 500
         );
-        grad.addColorStop(0, "rgba(255, 210, 120, 0.12)");
-        grad.addColorStop(0.5, "rgba(255, 160, 70, 0.06)");
+        grad.addColorStop(0, "rgba(255, 255, 255, 0.08)"); // changed to white
+        grad.addColorStop(0.5, "rgba(255, 255, 255, 0.03)"); // changed to white
         grad.addColorStop(1, "transparent");
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // floating particles
+      // floating particles - cleaner white
       particles.forEach((p) => {
         p.y -= p.speed;
         if (p.y < 0) {
@@ -64,7 +64,7 @@ function CinematicBackground() {
         }
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 200, 120, ${p.opacity})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`; // changed to white
         ctx.fill();
       });
 
@@ -89,51 +89,6 @@ function CinematicBackground() {
     className: "fixed inset-0 pointer-events-none",
     style: { zIndex: 0 },
   });
-}
-
-// Volumetric ambient lights (more premium visible beams)
-function AmbientLight() {
-  return React.createElement(
-    "div",
-    {
-      className: "fixed inset-0 pointer-events-none overflow-hidden",
-      style: { zIndex: 0 },
-    },
-    [
-      React.createElement("div", {
-        key: "top",
-        className: "absolute -top-32 left-1/2 -translate-x-1/2 w-[1200px] h-[800px]",
-        style: {
-          background:
-            "radial-gradient(ellipse at center, rgba(255, 200, 100, 0.2) 0%, rgba(255, 150, 50, 0.1) 30%, transparent 70%)",
-        },
-      }),
-      React.createElement("div", {
-        key: "right",
-        className: "absolute top-1/4 -right-32 w-[600px] h-[600px]",
-        style: {
-          background:
-            "radial-gradient(circle, rgba(255, 180, 80, 0.18) 0%, rgba(255, 120, 40, 0.08) 40%, transparent 70%)",
-        },
-      }),
-      React.createElement("div", {
-        key: "bottom",
-        className: "absolute -bottom-32 left-1/3 w-[800px] h-[400px]",
-        style: {
-          background:
-            "radial-gradient(ellipse at center, rgba(255, 190, 100, 0.14) 0%, rgba(255, 140, 60, 0.07) 40%, transparent 70%)",
-        },
-      }),
-      React.createElement("div", {
-        key: "center",
-        className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px]",
-        style: {
-          background:
-            "radial-gradient(circle, rgba(255, 220, 150, 0.12) 0%, rgba(255, 160, 70, 0.06) 50%, transparent 80%)",
-        },
-      }),
-    ]
-  );
 }
 
 // Navigation with transparency & logo text (premium)
@@ -258,7 +213,7 @@ function Navigation() {
   );
 }
 
-// Hero Section with video background + parallax + enhanced premium typography
+// Hero Section with video background - CLEAN version
 function HeroSection() {
   const { scrollYProgress } = useScroll();
   const yBg = useTransform(scrollYProgress, [0, 1], [0, -180]);
@@ -287,34 +242,11 @@ function HeroSection() {
         React.createElement("source", { src: "/hero.mp4", type: "video/mp4" })
       )
     ),
+    // Cleaner overlay - increased contrast
     React.createElement("div", {
       className:
-        "absolute inset-0 z-0 bg-gradient-to-b from-black/70 via-black/80 to-black/90",
+        "absolute inset-0 z-0 bg-gradient-to-b from-black/85 via-black/80 to-black/90",
     }),
-    React.createElement("div", {
-      className:
-        "absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,rgba(255,210,130,0.08)_0%,transparent_70%)]",
-    }),
-    React.createElement(
-      "div",
-      { className: "absolute inset-0 z-0 pointer-events-none" },
-      React.createElement("div", {
-        className:
-          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[800px]",
-        style: {
-          background:
-            "radial-gradient(ellipse at center, rgba(255, 200, 100, 0.25) 0%, rgba(255, 150, 50, 0.12) 30%, transparent 70%)",
-        },
-      }),
-      React.createElement("div", {
-        className:
-          "absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px]",
-        style: {
-          background:
-            "linear-gradient(180deg, rgba(255, 200, 100, 0.2) 0%, rgba(255, 150, 50, 0.08) 50%, transparent 100%)",
-        },
-      })
-    ),
     React.createElement(
       motion.div,
       {
@@ -877,7 +809,6 @@ function App() {
         "relative min-h-screen bg-[#1D1D1D] overflow-x-hidden",
     },
     React.createElement(CinematicBackground, null),
-    React.createElement(AmbientLight, null),
     React.createElement(Navigation, null),
     React.createElement(HeroSection, null),
     React.createElement(SectionDivider, null),
