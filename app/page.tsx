@@ -4,6 +4,17 @@ import { useState, useEffect, useRef } from "react";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Mail, Phone, MapPin, ArrowRight, Menu, X } from "lucide-react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+
+// Dynamic import for Spline to avoid SSR issues
+const Spline = dynamic(() => import("@splinetool/react-spline"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+    </div>
+  ),
+});
 
 // ============================================
 // INTERACTIVE BACKGROUND COMPONENT - WITH PARALLAX
@@ -49,7 +60,7 @@ function InteractiveBackground() {
           opacity: 0.25 + Math.random() * 0.25,
           baseX: x,
           baseY: y,
-          depth: 0.3 + Math.random() * 0.7, // Depth layer for parallax (0.3 = far, 1.0 = near)
+          depth: 0.3 + Math.random() * 0.7,
           parallaxOffset: 0,
           influence: 0,
         });
@@ -80,7 +91,7 @@ function InteractiveBackground() {
     const handleScroll = () => {
       const currentScroll = window.scrollY;
       const delta = currentScroll - lastScrollYRef.current;
-      scrollVelocityRef.current = delta * 0.3; // Smooth velocity for organic parallax
+      scrollVelocityRef.current = delta * 0.3;
       scrollRef.current = currentScroll;
       lastScrollYRef.current = currentScroll;
     };
@@ -96,7 +107,6 @@ function InteractiveBackground() {
       canvas.width = width;
       canvas.height = height;
 
-      // Reposition particles to new dimensions
       particlesRef.current.forEach((particle: any) => {
         if (particle.baseX > width) {
           particle.baseX = Math.random() * width;
@@ -118,24 +128,18 @@ function InteractiveBackground() {
     const animate = () => {
       if (!ctx || !canvas) return;
 
-      // Smooth mouse tracking with lerp
       currentMouseX += (targetMouseX - currentMouseX) * 0.08;
       currentMouseY += (targetMouseY - currentMouseY) * 0.08;
 
-      // Smooth scroll velocity decay
       scrollVelocityRef.current *= 0.95;
       
-      // Update scroll parallax factor with inertia
       const scrollFactor = scrollRef.current * 0.0008;
       const velocityFactor = scrollVelocityRef.current * 0.002;
       timeRef.current += 0.003;
 
-      // Clear canvas with complete transparency
       ctx.clearRect(0, 0, width, height);
 
-      // Update and draw particles with depth-based parallax
       particlesRef.current.forEach((particle: any) => {
-        // Calculate mouse influence (gentle repulsion)
         let influenceX = 0;
         let influenceY = 0;
 
@@ -152,47 +156,35 @@ function InteractiveBackground() {
           }
         }
 
-        // Organic drift with sine wave patterns
         const driftX = Math.sin(timeRef.current * 0.3 + particle.baseX * 0.002) * 0.06;
         const driftY = Math.cos(timeRef.current * 0.4 + particle.baseY * 0.002) * 0.06;
 
-        // Apply forces with inertia
         particle.vx += (driftX - particle.vx) * 0.02;
         particle.vy += (driftY - particle.vy) * 0.02;
 
-        // Apply mouse influence
         particle.vx += (influenceX - particle.vx) * 0.05;
         particle.vy += (influenceY - particle.vy) * 0.05;
 
-        // Update position
         particle.x += particle.vx;
         particle.y += particle.vy;
 
-        // PARALLAX EFFECT: Dynamic target position based on depth layer
-        // Near particles move more, far particles move less
-        const parallaxStrength = particle.depth * 12; // Depth multiplier for parallax intensity
+        const parallaxStrength = particle.depth * 12;
         const scrollParallax = scrollFactor * parallaxStrength;
         const velocityParallax = velocityFactor * parallaxStrength;
         
-        // Calculate target X with scroll-based parallax (horizontal movement)
         const targetX = particle.baseX + scrollParallax + velocityParallax;
-        
-        // Calculate target Y with subtle vertical parallax (30% of horizontal intensity)
         const targetY = particle.baseY + (scrollParallax * 0.3) + (velocityParallax * 0.3);
 
-        // Gentle pull back to parallax-adjusted position
         const returnStrength = 0.003;
         particle.vx += (targetX - particle.x) * returnStrength;
         particle.vy += (targetY - particle.y) * returnStrength;
 
-        // Add subtle breathing effect based on depth (near particles breathe more)
         const breathIntensity = 0.3 + particle.depth * 0.5;
         const breathX = Math.sin(timeRef.current * 0.8 * particle.depth) * 0.03 * breathIntensity;
         const breathY = Math.cos(timeRef.current * 0.7 * particle.depth) * 0.03 * breathIntensity;
         particle.vx += breathX;
         particle.vy += breathY;
 
-        // Boundary constraints with soft bounce
         if (particle.x < 0) {
           particle.x = 0;
           particle.vx *= -0.2;
@@ -210,12 +202,10 @@ function InteractiveBackground() {
           particle.vy *= -0.2;
         }
 
-        // Draw particle with enhanced gradient for better visibility
         const opacity = particle.opacity * (0.7 + Math.sin(timeRef.current * 0.5 + particle.x * 0.01) * 0.15);
         
         ctx.beginPath();
         
-        // Enhanced gradient with stronger visibility
         const gradient = ctx.createRadialGradient(
           particle.x, particle.y, 0,
           particle.x, particle.y, particle.size * 1.5
@@ -227,7 +217,6 @@ function InteractiveBackground() {
         ctx.arc(particle.x, particle.y, particle.size * 0.8, 0, Math.PI * 2);
         ctx.fill();
 
-        // Enhanced core for depth and visibility
         ctx.beginPath();
         ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.7})`;
         ctx.arc(particle.x, particle.y, particle.size * 0.4, 0, Math.PI * 2);
@@ -239,7 +228,6 @@ function InteractiveBackground() {
 
     animate();
 
-    // Cleanup
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -254,7 +242,7 @@ function InteractiveBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
+      className="fixed inset-0 z-0 pointer-events-none" // ✅ Modificado: pointer-events-none
       style={{
         width: "100%",
         height: "100%",
@@ -306,7 +294,7 @@ function MouseLight() {
     };
   }, []);
 
-  return <div className="pointer-events-none fixed inset-0 z-50" ref={ref} />;
+  return <div className="fixed inset-0 z-50 pointer-events-none" ref={ref} />; // ✅ Modificado: pointer-events-none
 }
 
 // ============================================
@@ -340,7 +328,7 @@ function Navigation() {
     >
       <div className="max-w-[1400px] mx-auto px-6 md:px-12">
         <div className="flex items-center justify-between h-20">
-          <a href="#hero" className="relative z-10">
+          <a href="#hero" className="relative z-10 pointer-events-auto"> {/* ✅ Modificado: pointer-events-auto */}
             <Image
               src="/logo.png"
               alt="Trinity 3D"
@@ -356,7 +344,7 @@ function Navigation() {
               <a
                 key={item.label}
                 href={item.href}
-                className="text-sm font-light text-white/70 hover:text-white transition-colors duration-200 tracking-wide"
+                className="text-sm font-light text-white/70 hover:text-white transition-colors duration-200 tracking-wide pointer-events-auto" // ✅ Modificado: pointer-events-auto
               >
                 {item.label}
               </a>
@@ -365,7 +353,7 @@ function Navigation() {
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-white p-2"
+            className="md:hidden text-white p-2 pointer-events-auto" // ✅ Modificado: pointer-events-auto
             aria-label="Toggle menu"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -385,7 +373,7 @@ function Navigation() {
                   key={item.label}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className="text-white/80 hover:text-white text-lg font-light transition-colors"
+                  className="text-white/80 hover:text-white text-lg font-light transition-colors pointer-events-auto" // ✅ Modificado: pointer-events-auto
                 >
                   {item.label}
                 </a>
@@ -399,39 +387,55 @@ function Navigation() {
 }
 
 // ============================================
-// HERO SECTION
+// HERO SECTION WITH INTERACTIVE SPLINE MODEL
 // ============================================
 function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const splineRef = useRef<any>(null);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 150]);
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
 
+  // ✅ Montaje en cliente
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      <motion.div style={{ y, scale }} className="absolute inset-0 z-0">
-        <video
-          ref={videoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover opacity-40"
-        >
-          <source src="/hero.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+      {/* Spline 3D Background - Interactive */}
+      <motion.div 
+        style={{ y, scale }} 
+        className="absolute inset-0 z-0"
+      >
+        {/* ✅ Spline solo se renderiza en cliente con archivo local */}
+        {mounted && (
+          <Spline
+            ref={splineRef}
+            scene="/scene.splinecode"
+            className="w-full h-full object-cover"
+            style={{
+              width: "100%",
+              height: "100%",
+              opacity: 0.75,
+            }}
+          />
+        )}
+        {/* Dark overlay - MUST be pointer-events-none */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 pointer-events-none" /> {/* ✅ Modificado: pointer-events-none */}
       </motion.div>
 
+      {/* Content - All interactive elements need pointer-events-auto */}
       <motion.div
         style={{ opacity }}
-        className="relative z-10 max-w-4xl mx-auto px-6 text-center"
+        className="relative z-10 max-w-4xl mx-auto px-6 text-center pointer-events-none" // ✅ Modificado: contenedor principal no captura eventos
       >
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+          className="pointer-events-none" // ✅ Modificado: el contenido no captura eventos
         >
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
@@ -465,7 +469,7 @@ function HeroSection() {
           >
             <motion.a
               href="#contact"
-              className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-medium transition-all duration-300 group"
+              className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-medium transition-all duration-300 group pointer-events-auto" // ✅ Modificado: el botón SÍ captura eventos
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -483,11 +487,12 @@ function HeroSection() {
         </motion.div>
       </motion.div>
 
+      {/* Scroll Indicator - No debe capturar eventos */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2, duration: 0.8 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none" // ✅ Modificado: pointer-events-none
       >
         <motion.div
           animate={{ y: [0, 8, 0] }}
