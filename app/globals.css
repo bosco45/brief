@@ -83,7 +83,16 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* SOLUCIÓN FINAL: Fallback múltiple con CUR como prioridad */
+    cursor: url('/cursor.cur') 16 16, url('/cursor.png') 16 16, auto;
   }
+  
+  /* Elementos interactivos mantienen el cursor personalizado */
+  a, button, [role="button"], input[type="submit"], input[type="button"], 
+  .interactive, [tabindex]:not([tabindex="-1"]) {
+    cursor: url('/cursor.cur') 16 16, url('/cursor.png') 16 16, pointer;
+  }
+  
   body {
     @apply bg-background text-foreground;
   }
@@ -151,4 +160,10 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Asegurar que elementos como canvas, spline, partículas mantengan interactividad */
+canvas, iframe, video, [class*="spline"], [class*="particle"] {
+  cursor: url('/cursor.cur') 12 12, url('/cursor.png') 16 16, auto;
+  pointer-events: auto;
 }

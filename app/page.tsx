@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { motion, useScroll, useTransform, useInView, MotionValue } from "framer-motion";
 import { Mail, Phone, MapPin, ArrowRight, Menu, X } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -17,7 +17,90 @@ const Spline = dynamic(() => import("@splinetool/react-spline"), {
 });
 
 // ============================================
-// INTERACTIVE BACKGROUND COMPONENT - WITH PARALLAX
+// ACCENT LIGHT COMPONENT - Con parallax suave
+// ============================================
+function AccentLight() {
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0.06);
+  const { scrollY } = useScroll();
+  const parallaxY = useTransform(scrollY, [0, 1000], [0, -25]);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const normalizedX = Math.abs((e.clientX / window.innerWidth) * 2 - 1);
+      const newOpacity = 0.04 + normalizedX * 0.05;
+      setOpacity(Math.min(0.09, newOpacity));
+      setPos({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, []);
+
+  return (
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-[1]"
+      style={{
+        background: `radial-gradient(
+          circle at ${pos.x}px ${pos.y}px,
+          rgba(120, 180, 255, ${opacity}),
+          rgba(100, 140, 220, 0.02) 30%,
+          transparent 60%
+        )`,
+        transition: "background 0.08s ease-out",
+        y: parallaxY,
+      }}
+    />
+  );
+}
+
+// ============================================
+// SECTION GLOW COMPONENT - Con parallax por sección
+// ============================================
+function SectionGlow({ 
+  position = "center", 
+  intensity = 0.08,
+  color = "rgba(120,180,255,0.08)",
+  scrollProgress
+}: { 
+  position?: "center" | "top" | "bottom" | "left" | "right";
+  intensity?: number;
+  color?: string;
+  scrollProgress?: MotionValue<number>;
+}) {
+  const positionClasses = {
+    center: "inset-0",
+    top: "top-0 left-0 right-0 h-[50vh]",
+    bottom: "bottom-0 left-0 right-0 h-[50vh]",
+    left: "left-0 top-0 bottom-0 w-[50vw]",
+    right: "right-0 top-0 bottom-0 w-[50vw]",
+  };
+
+  const gradientDirections = {
+    center: `radial-gradient(circle at center, ${color}, transparent 70%)`,
+    top: `radial-gradient(circle at 50% 0%, ${color}, transparent 70%)`,
+    bottom: `radial-gradient(circle at 50% 100%, ${color}, transparent 70%)`,
+    left: `radial-gradient(circle at 0% 50%, ${color}, transparent 70%)`,
+    right: `radial-gradient(circle at 100% 50%, ${color}, transparent 70%)`,
+  };
+
+  // Parallax sutil para el glow
+  const yOffset = scrollProgress ? useTransform(scrollProgress, [0, 1], [0, -15]) : { get: () => 0 };
+
+  return (
+    <motion.div 
+      className={`absolute ${positionClasses[position]} pointer-events-none z-0`}
+      style={{
+        background: gradientDirections[position],
+        opacity: intensity,
+        y: yOffset,
+      }}
+    />
+  );
+}
+
+// ============================================
+// INTERACTIVE BACKGROUND COMPONENT - WITH PARALLAX EN PARTÍCULAS
 // ============================================
 function InteractiveBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,6 +111,7 @@ function InteractiveBackground() {
   const timeRef = useRef(0);
   const lastScrollYRef = useRef(0);
   const scrollVelocityRef = useRef(0);
+  const { scrollY } = useScroll();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -39,13 +123,11 @@ function InteractiveBackground() {
     let width = window.innerWidth;
     let height = window.innerHeight;
 
-    // Particle configuration - enhanced visibility
     const PARTICLE_COUNT = 45;
     const MAX_SPEED = 0.08;
     const INFLUENCE_RADIUS = 180;
     const INFLUENCE_STRENGTH = 0.35;
 
-    // Initialize particles with organic positions and parallax depth layers
     const initParticles = () => {
       const particles = [];
       for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -70,7 +152,6 @@ function InteractiveBackground() {
 
     particlesRef.current = initParticles();
 
-    // Handle mouse movement with lerp smoothing
     let targetMouseX = width / 2;
     let targetMouseY = height / 2;
     let currentMouseX = width / 2;
@@ -100,7 +181,6 @@ function InteractiveBackground() {
     window.addEventListener("mouseleave", handleMouseLeave);
     window.addEventListener("scroll", handleScroll);
 
-    // Resize handler with particle repositioning
     const handleResize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
@@ -124,7 +204,6 @@ function InteractiveBackground() {
     handleResize();
     window.addEventListener("resize", handleResize);
 
-    // Animation loop with lerp smoothing and parallax
     const animate = () => {
       if (!ctx || !canvas) return;
 
@@ -133,8 +212,9 @@ function InteractiveBackground() {
 
       scrollVelocityRef.current *= 0.95;
       
-      const scrollFactor = scrollRef.current * 0.0008;
-      const velocityFactor = scrollVelocityRef.current * 0.002;
+      // Scroll factor reducido para parallax más sutil (factor 0.0005 en lugar de 0.0008)
+      const scrollFactor = scrollRef.current * 0.0005;
+      const velocityFactor = scrollVelocityRef.current * 0.0015;
       timeRef.current += 0.003;
 
       ctx.clearRect(0, 0, width, height);
@@ -168,12 +248,13 @@ function InteractiveBackground() {
         particle.x += particle.vx;
         particle.y += particle.vy;
 
-        const parallaxStrength = particle.depth * 12;
+        // Parallax más sutil - reducido de 12 a 8
+        const parallaxStrength = particle.depth * 8;
         const scrollParallax = scrollFactor * parallaxStrength;
         const velocityParallax = velocityFactor * parallaxStrength;
         
         const targetX = particle.baseX + scrollParallax + velocityParallax;
-        const targetY = particle.baseY + (scrollParallax * 0.3) + (velocityParallax * 0.3);
+        const targetY = particle.baseY + (scrollParallax * 0.2) + (velocityParallax * 0.2);
 
         const returnStrength = 0.003;
         particle.vx += (targetX - particle.x) * returnStrength;
@@ -242,7 +323,7 @@ function InteractiveBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none" // ✅ Modificado: pointer-events-none
+      className="fixed inset-0 z-0 pointer-events-none"
       style={{
         width: "100%",
         height: "100%",
@@ -254,12 +335,14 @@ function InteractiveBackground() {
 }
 
 // ============================================
-// MOUSE LIGHT COMPONENT - ENHANCED INTENSITY
+// MOUSE LIGHT COMPONENT - Con parallax suave
 // ============================================
 function MouseLight() {
   const ref = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: 0, y: 0 });
   const current = useRef({ x: 0, y: 0 });
+  const { scrollY } = useScroll();
+  const parallaxY = useTransform(scrollY, [0, 1000], [0, -20]);
 
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
@@ -276,9 +359,9 @@ function MouseLight() {
       if (ref.current) {
         ref.current.style.background = `
           radial-gradient(
-            900px at ${current.current.x}px ${current.current.y}px,
-            rgba(255,255,255,0.18),
-            rgba(255,255,255,0.08) 35%,
+            450px at ${current.current.x}px ${current.current.y}px,
+            rgba(255,255,255,0.05),
+            rgba(255,255,255,0.02) 35%,
             transparent 65%
           )
         `;
@@ -294,7 +377,7 @@ function MouseLight() {
     };
   }, []);
 
-  return <div className="fixed inset-0 z-50 pointer-events-none" ref={ref} />; // ✅ Modificado: pointer-events-none
+  return <motion.div className="fixed inset-0 z-50 pointer-events-none" ref={ref} style={{ y: parallaxY }} />;
 }
 
 // ============================================
@@ -328,7 +411,7 @@ function Navigation() {
     >
       <div className="max-w-[1400px] mx-auto px-6 md:px-12">
         <div className="flex items-center justify-between h-20">
-          <a href="#hero" className="relative z-10 pointer-events-auto"> {/* ✅ Modificado: pointer-events-auto */}
+          <a href="#hero" className="relative z-10 pointer-events-auto">
             <Image
               src="/logo.png"
               alt="Trinity 3D"
@@ -344,7 +427,7 @@ function Navigation() {
               <a
                 key={item.label}
                 href={item.href}
-                className="text-sm font-light text-white/70 hover:text-white transition-colors duration-200 tracking-wide pointer-events-auto" // ✅ Modificado: pointer-events-auto
+                className="text-sm font-light text-white/70 hover:text-white transition-colors duration-200 tracking-wide pointer-events-auto"
               >
                 {item.label}
               </a>
@@ -353,7 +436,7 @@ function Navigation() {
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-white p-2 pointer-events-auto" // ✅ Modificado: pointer-events-auto
+            className="md:hidden text-white p-2 pointer-events-auto"
             aria-label="Toggle menu"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -373,7 +456,7 @@ function Navigation() {
                   key={item.label}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className="text-white/80 hover:text-white text-lg font-light transition-colors pointer-events-auto" // ✅ Modificado: pointer-events-auto
+                  className="text-white/80 hover:text-white text-lg font-light transition-colors pointer-events-auto"
                 >
                   {item.label}
                 </a>
@@ -387,7 +470,7 @@ function Navigation() {
 }
 
 // ============================================
-// HERO SECTION WITH INTERACTIVE SPLINE MODEL
+// HERO SECTION WITH INTERACTIVE SPLINE MODEL (CON PARALLAX SUTIL)
 // ============================================
 function HeroSection() {
   const [mounted, setMounted] = useState(false);
@@ -396,20 +479,23 @@ function HeroSection() {
   const y = useTransform(scrollYProgress, [0, 1], [0, 150]);
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
+  
+  // Parallax para el fondo Spline - extremadamente sutil (factor 0.03)
+  const splineY = useTransform(scrollYProgress, [0, 1], [0, -45]);
+  // Parallax para el overlay de gradiente
+  const overlayY = useTransform(scrollYProgress, [0, 1], [0, -20]);
 
-  // ✅ Montaje en cliente
   useEffect(() => {
     setMounted(true);
   }, []);
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Spline 3D Background - Interactive */}
+      {/* Spline 3D Background - Con parallax sutil independiente */}
       <motion.div 
-        style={{ y, scale }} 
+        style={{ y: splineY, scale }} 
         className="absolute inset-0 z-0"
       >
-        {/* ✅ Spline solo se renderiza en cliente con archivo local */}
         {mounted && (
           <Spline
             ref={splineRef}
@@ -422,26 +508,30 @@ function HeroSection() {
             }}
           />
         )}
-        {/* Dark overlay - MUST be pointer-events-none */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 pointer-events-none" /> {/* ✅ Modificado: pointer-events-none */}
+        {/* Dark overlay with gradient - Con parallax propio */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 pointer-events-none"
+          style={{ y: overlayY }}
+        />
+        <SectionGlow position="center" intensity={0.12} color="rgba(120,180,255,0.08)" scrollProgress={scrollYProgress} />
       </motion.div>
 
-      {/* Content - All interactive elements need pointer-events-auto */}
+      {/* Content - Permanece estable para máxima legibilidad */}
       <motion.div
         style={{ opacity }}
-        className="relative z-10 max-w-4xl mx-auto px-6 text-center pointer-events-none" // ✅ Modificado: contenedor principal no captura eventos
+        className="relative z-10 max-w-4xl mx-auto px-6 text-center pointer-events-none"
       >
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
-          className="pointer-events-none" // ✅ Modificado: el contenido no captura eventos
+          className="pointer-events-none"
         >
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-6xl md:text-7xl lg:text-8xl font-light text-white mb-6 tracking-tight"
+            className="text-7xl md:text-8xl lg:text-[5.5rem] font-light text-white mb-8 tracking-tight leading-[1.1]"
           >
             Digital Engineering
           </motion.h1>
@@ -449,7 +539,7 @@ function HeroSection() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-            className="text-xl md:text-2xl text-white/70 mb-8 max-w-2xl mx-auto font-light"
+            className="text-xl md:text-2xl text-white/60 mb-10 max-w-2xl mx-auto font-light leading-relaxed"
           >
             High-fidelity 3D visualization, AI-driven simulations, and immersive experiences
           </motion.p>
@@ -457,7 +547,7 @@ function HeroSection() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-            className="text-base md:text-lg text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
+            className="text-base md:text-lg text-white/50 mb-14 max-w-xl mx-auto leading-relaxed"
           >
             Trinity 3D transforms the way industries design, visualize, and interact with projects
             through advanced 3D modeling, artificial intelligence, and extended reality technologies.
@@ -469,7 +559,7 @@ function HeroSection() {
           >
             <motion.a
               href="#contact"
-              className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-medium transition-all duration-300 group pointer-events-auto" // ✅ Modificado: el botón SÍ captura eventos
+              className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-medium transition-all duration-300 group pointer-events-auto"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -487,12 +577,12 @@ function HeroSection() {
         </motion.div>
       </motion.div>
 
-      {/* Scroll Indicator - No debe capturar eventos */}
+      {/* Scroll Indicator */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2, duration: 0.8 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none" // ✅ Modificado: pointer-events-none
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
       >
         <motion.div
           animate={{ y: [0, 8, 0] }}
@@ -505,33 +595,51 @@ function HeroSection() {
 }
 
 // ============================================
-// SECTION CONTAINER
+// SECTION CONTAINER (CON PARALLAX EN BACKGROUND)
 // ============================================
 function SectionContainer({
   id,
   children,
   className = "",
   dark = false,
+  withGlow = false,
+  glowPosition = "center" as "center" | "top" | "bottom" | "left" | "right",
+  glowIntensity = 0.08,
+  parallaxIntensity = 0.05, // Nuevo: control de parallax por sección
 }: {
   id?: string;
   children: React.ReactNode;
   className?: string;
   dark?: boolean;
+  withGlow?: boolean;
+  glowPosition?: "center" | "top" | "bottom" | "left" | "right";
+  glowIntensity?: number;
+  parallaxIntensity?: number;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.2 });
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  
+  // Parallax sutil para el contenido de fondo
+  const yOffset = useTransform(scrollYProgress, [0, 1], [0, parallaxIntensity * 30]);
 
   return (
     <section
       id={id}
       ref={ref}
-      className={`py-24 md:py-32 ${dark ? "bg-black" : "bg-[#0A0A0A]"} ${className}`}
+      className={`relative py-28 md:py-36 ${dark ? "bg-black" : "bg-[#0A0A0A]"} ${className}`}
     >
+      {withGlow && (
+        <SectionGlow position={glowPosition} intensity={glowIntensity} scrollProgress={scrollYProgress} />
+      )}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
-        className="max-w-[1200px] mx-auto px-6 md:px-12"
+        className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10"
       >
         {children}
       </motion.div>
@@ -540,7 +648,7 @@ function SectionContainer({
 }
 
 // ============================================
-// SECTION HEADER
+// SECTION HEADER (CON MICRO-PARALLAX)
 // ============================================
 function SectionHeader({
   label,
@@ -555,15 +663,22 @@ function SectionHeader({
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.3 });
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  
+  // Micro-parallax extremadamente sutil para el título
+  const titleY = useTransform(scrollYProgress, [0, 1], [0, -8]);
 
   return (
-    <div ref={ref} className={`mb-16 ${centered ? "text-center" : "text-left"}`}>
+    <div ref={ref} className={`mb-20 ${centered ? "text-center" : "text-left"}`}>
       {label && (
         <motion.span
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-xs font-light tracking-[0.2em] text-white/40 uppercase mb-4 block"
+          className="text-xs font-light tracking-[0.2em] text-white/40 uppercase mb-5 block"
         >
           {label}
         </motion.span>
@@ -572,7 +687,8 @@ function SectionHeader({
         initial={{ opacity: 0, y: 20 }}
         animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="text-3xl md:text-4xl lg:text-5xl font-light text-white mb-6 leading-tight tracking-tight"
+        style={{ y: titleY }}
+        className="text-4xl md:text-5xl lg:text-6xl font-light text-white mb-8 leading-[1.15] tracking-tight"
       >
         {title}
       </motion.h2>
@@ -581,12 +697,86 @@ function SectionHeader({
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className={`text-lg text-white/60 leading-relaxed max-w-2xl ${centered ? "mx-auto" : ""}`}
+          className={`text-lg text-white/55 leading-relaxed max-w-2xl ${centered ? "mx-auto" : ""}`}
         >
           {description}
         </motion.p>
       )}
     </div>
+  );
+}
+
+// ============================================
+// PROJECT CARD CON MICRO-PARALLAX EN HOVER
+// ============================================
+function ProjectCard({ 
+  image, 
+  title, 
+  description, 
+  alt, 
+  index,
+  isReversed = false 
+}: { 
+  image: string; 
+  title: string; 
+  description: string; 
+  alt: string; 
+  index: number;
+  isReversed?: boolean;
+}) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  
+  // Parallax sutil para la imagen basado en scroll
+  const imageY = useTransform(scrollYProgress, [0, 1], [0, index % 2 === 0 ? 12 : -12]);
+  
+  // Micro-parallax en hover
+  const [hoverY, setHoverY] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.7, delay: index * 0.1 }}
+      className={`grid md:grid-cols-2 gap-14 items-center ${isReversed ? "md:flex-row-reverse" : ""}`}
+    >
+      <motion.div
+        style={{ y: imageY }}
+        className={`relative ${isReversed ? "md:order-2" : ""}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <motion.div 
+          className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-white/5"
+          animate={{ y: isHovered ? -6 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        >
+          <Image
+            src={image}
+            alt={alt}
+            fill
+            className="object-cover transition-transform duration-700 hover:scale-105"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        </motion.div>
+      </motion.div>
+      <div className={isReversed ? "md:order-1" : ""}>
+        <motion.h3 
+          className="text-2xl md:text-3xl font-light text-white mb-6 tracking-tight"
+          animate={{ x: isHovered ? 4 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        >
+          {title}
+        </motion.h3>
+        <p className="text-white/60 text-lg leading-relaxed max-w-md">{description}</p>
+      </div>
+    </motion.div>
   );
 }
 
@@ -598,7 +788,7 @@ function AboutSection() {
   const isInView = useInView(ref, { once: true, amount: 0.3 });
 
   return (
-    <SectionContainer id="about" dark={false}>
+    <SectionContainer id="about" dark={false} withGlow glowPosition="top" glowIntensity={0.06} parallaxIntensity={0.04}>
       <div className="max-w-3xl mx-auto text-center">
         <SectionHeader
           label="WHO WE ARE"
@@ -610,7 +800,7 @@ function AboutSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="space-y-6 text-white/60 text-lg leading-relaxed"
+          className="space-y-7 text-white/60 text-lg leading-relaxed max-w-2xl mx-auto"
         >
           <p>
             We are architects of digital experiences that bridge the gap between imagination and reality.
@@ -655,13 +845,13 @@ function ServicesSection() {
   ];
 
   return (
-    <SectionContainer id="services" dark={true}>
+    <SectionContainer id="services" dark={true} withGlow glowPosition="center" glowIntensity={0.08} parallaxIntensity={0.06}>
       <SectionHeader
         label="WHAT WE CREATE"
         title="Core Capabilities"
         description="Specialized services that transform complex ideas into immersive digital experiences"
       />
-      <div className="grid md:grid-cols-2 gap-12 mt-12">
+      <div className="grid md:grid-cols-2 gap-14 mt-14">
         {services.map((service, index) => (
           <motion.div
             key={service.title}
@@ -669,13 +859,14 @@ function ServicesSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
+            whileHover={{ y: -4 }}
             className="group"
           >
             <div className="border-t border-white/10 pt-8">
-              <h3 className="text-2xl font-light text-white mb-4 tracking-tight">
+              <h3 className="text-2xl md:text-3xl font-light text-white mb-5 tracking-tight">
                 {service.title}
               </h3>
-              <p className="text-white/60 leading-relaxed">{service.description}</p>
+              <p className="text-white/60 leading-relaxed max-w-md">{service.description}</p>
             </div>
           </motion.div>
         ))}
@@ -685,11 +876,9 @@ function ServicesSection() {
 }
 
 // ============================================
-// PROJECTS SECTION
+// PROJECTS SECTION (CON CARDS MEJORADAS CON PARALLAX)
 // ============================================
 function ProjectsSection() {
-  const { scrollYProgress } = useScroll();
-  
   const projects = [
     {
       title: "Virtual Real Estate",
@@ -715,50 +904,24 @@ function ProjectsSection() {
   ];
 
   return (
-    <SectionContainer id="projects" dark={false}>
+    <SectionContainer id="projects" dark={false} withGlow glowPosition="bottom" glowIntensity={0.06} parallaxIntensity={0.05}>
       <SectionHeader
         label="SELECTED WORK"
         title="Immersive Solutions in Practice"
         description="Real-world applications that demonstrate our commitment to precision and innovation"
       />
-      <div className="space-y-24">
-        {projects.map((project, index) => {
-          const imageParallax = useTransform(scrollYProgress, [0, 1], [0, index % 2 === 0 ? -30 : 30]);
-          
-          return (
-            <motion.div
-              key={project.title}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.7, delay: index * 0.1 }}
-              className={`grid md:grid-cols-2 gap-12 items-center ${
-                index % 2 === 1 ? "md:flex-row-reverse" : ""
-              }`}
-            >
-              <motion.div
-                style={{ y: imageParallax }}
-                className={`relative ${index % 2 === 1 ? "md:order-2" : ""}`}
-              >
-                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-white/5">
-                  <Image
-                    src={project.image}
-                    alt={project.alt}
-                    fill
-                    className="object-cover transition-transform duration-700 hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                  />
-                </div>
-              </motion.div>
-              <div className={index % 2 === 1 ? "md:order-1" : ""}>
-                <h3 className="text-2xl md:text-3xl font-light text-white mb-6 tracking-tight">
-                  {project.title}
-                </h3>
-                <p className="text-white/60 text-lg leading-relaxed">{project.description}</p>
-              </div>
-            </motion.div>
-          );
-        })}
+      <div className="space-y-32">
+        {projects.map((project, index) => (
+          <ProjectCard
+            key={project.title}
+            image={project.image}
+            title={project.title}
+            description={project.description}
+            alt={project.alt}
+            index={index}
+            isReversed={index % 2 === 1}
+          />
+        ))}
       </div>
     </SectionContainer>
   );
@@ -778,13 +941,13 @@ function IndustriesSection() {
   ];
 
   return (
-    <SectionContainer id="industries" dark={true}>
+    <SectionContainer id="industries" dark={true} withGlow glowPosition="center" glowIntensity={0.06} parallaxIntensity={0.04}>
       <SectionHeader
         label="SECTORS WE TRANSFORM"
         title="Industries We Serve"
         description="Across diverse sectors, our technology delivers measurable impact and innovation"
       />
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mt-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mt-14">
         {industries.map((industry, index) => (
           <motion.div
             key={industry}
@@ -821,13 +984,13 @@ function TechnologySection() {
   ];
 
   return (
-    <SectionContainer id="technology" dark={false}>
+    <SectionContainer id="technology" dark={false} withGlow glowPosition="top" glowIntensity={0.06} parallaxIntensity={0.05}>
       <SectionHeader
         label="TECHNOLOGY STACK"
         title="Our Foundation"
         description="Built on industry-leading platforms and cutting-edge tools"
       />
-      <div className="grid md:grid-cols-2 gap-12 mt-12">
+      <div className="grid md:grid-cols-2 gap-14 mt-14">
         {technologies.map((tech, index) => (
           <motion.div
             key={tech.name}
@@ -838,7 +1001,11 @@ function TechnologySection() {
             whileHover={{ y: -4 }}
             className="group"
           >
-            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-white/5 mb-6">
+            <motion.div 
+              className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-white/5 mb-8"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
               <Image
                 src={tech.image}
                 alt={tech.name}
@@ -846,9 +1013,9 @@ function TechnologySection() {
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
-            </div>
-            <h3 className="text-2xl font-light text-white mb-3">{tech.name}</h3>
-            <p className="text-white/60 leading-relaxed">{tech.description}</p>
+            </motion.div>
+            <h3 className="text-2xl md:text-3xl font-light text-white mb-4">{tech.name}</h3>
+            <p className="text-white/60 leading-relaxed max-w-md">{tech.description}</p>
           </motion.div>
         ))}
       </div>
@@ -857,7 +1024,7 @@ function TechnologySection() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="mt-12 max-w-3xl mx-auto text-center"
+        className="mt-16 max-w-2xl mx-auto text-center"
       >
         <p className="text-white/60 text-lg leading-relaxed">
           Our workflow integrates AI-driven automation and high-fidelity pipelines to deliver
@@ -891,14 +1058,14 @@ function ContactSection() {
   const isFormInView = useInView(formRef, { once: true, amount: 0.3 });
 
   return (
-    <SectionContainer id="contact" dark={true}>
+    <SectionContainer id="contact" dark={true} withGlow glowPosition="center" glowIntensity={0.08} parallaxIntensity={0.04}>
       <div ref={formRef} className="max-w-4xl mx-auto">
         <SectionHeader
           label="GET IN TOUCH"
           title="Let's Create Together"
           description="Ready to transform your vision into an immersive digital experience?"
         />
-        <div className="grid md:grid-cols-2 gap-16 mt-12">
+        <div className="grid md:grid-cols-2 gap-16 mt-14">
           <motion.form
             initial={{ opacity: 0, x: -30 }}
             animate={isFormInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -30 }}
@@ -959,8 +1126,8 @@ function ContactSection() {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="space-y-8"
           >
-            <div className="space-y-4">
-              <h3 className="text-white text-xl font-light mb-4">Contact Information</h3>
+            <div className="space-y-5">
+              <h3 className="text-white text-2xl font-light mb-5">Contact Information</h3>
               <motion.a
                 href="mailto:annya@trinity3d.online"
                 whileHover={{ x: 4 }}
@@ -1002,9 +1169,10 @@ function Footer() {
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className="bg-black border-t border-white/5 py-12"
+      className="bg-black border-t border-white/5 py-12 relative"
     >
-      <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+      <SectionGlow position="center" intensity={0.04} />
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-center md:text-left">
             <Image
@@ -1041,6 +1209,7 @@ function Footer() {
 export default function HomePage() {
   return (
     <main className="bg-black text-white overflow-x-hidden relative">
+      <AccentLight />
       <InteractiveBackground />
       <MouseLight />
       <Navigation />
